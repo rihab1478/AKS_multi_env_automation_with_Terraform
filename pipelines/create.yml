@@ -1,0 +1,119 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/environments/*
+
+stages:
+# Stage 1: Validate Terraform
+- stage: Validate
+  jobs:
+    - job: terraform_validate_dev
+      displayName: 'Validate Dev Terraform'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: TerraformInstaller@0
+          inputs:
+            terraformVersion: '1.5.7'
+        
+        - task: TerraformTaskV4@4
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+            backendServiceArm: 'Azure-Service-Connection'
+            backendAzureRmResourceGroupName: 'top_k8s_stage'
+            backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
+            backendAzureRmContainerName: 'tfstate'
+            backendAzureRmKey: 'dev.terraform.tfstate'
+        
+        - task: TerraformTaskV4@4
+          inputs:
+            provider: 'azurerm'
+            command: 'validate'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+
+    - job: terraform_validate_staging
+      displayName: 'Validate Staging Terraform'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: TerraformInstaller@0
+          inputs:
+            terraformVersion: '1.5.7'
+        
+        - task: TerraformTaskV4@4
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+            backendServiceArm: 'Azure-Service-Connection'
+            backendAzureRmResourceGroupName: 'top_k8s_stage'
+            backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
+            backendAzureRmContainerName: 'tfstate'
+            backendAzureRmKey: 'staging.terraform.tfstate'
+        
+        - task: TerraformTaskV4@4
+          inputs:
+            provider: 'azurerm'
+            command: 'validate'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+# Stage 2: Deploy Dev
+- stage: Dev_Deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+    - deployment: terraform_apply_dev
+      environment: dev
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@0
+                inputs:
+                  terraformVersion: '1.5.7'
+              
+              - task: TerraformTaskV4@4
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
+                  ensureBackend: true
+                  backendAzureRmResourceGroupName: 'top_k8s_stage'
+                  backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
+                  backendAzureRmContainerName: 'tfstate'
+                  backendAzureRmKey: 'dev.terraform.tfstate'
+                  commandOptions: '-auto-approve'
+# Stage 3: Deploy Staging
+- stage: Staging_Deploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+    - deployment: terraform_apply_staging
+      environment: staging
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@0
+                inputs:
+                  terraformVersion: '1.5.7'
+              
+              - task: TerraformTaskV4@4
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
+                  ensureBackend: true
+                  backendAzureRmResourceGroupName: 'top_k8s_stage'
+                  backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
+                  backendAzureRmContainerName: 'tfstate'
+                  backendAzureRmKey: 'staging.terraform.tfstate'
+                  commandOptions: '-auto-approve'

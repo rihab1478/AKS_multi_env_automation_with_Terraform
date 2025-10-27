@@ -1,0 +1,61 @@
+trigger:
+  none  #  manual trigger for destroy the aks cluster
+
+stages:
+# Stage 1: Destroy Dev
+- stage: Dev_Destroy
+  jobs:
+    - deployment: terraform_destroy_dev
+      environment: dev
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@0
+                inputs:
+                  terraformVersion: '1.5.7'
+
+              - task: TerraformTaskV4@4
+                inputs:
+                  provider: 'azurerm'
+                  command: 'destroy'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
+                  ensureBackend: true
+                  backendAzureRmResourceGroupName: 'top_k8s_stage'
+                  backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
+                  backendAzureRmContainerName: 'tfstate'
+                  backendAzureRmKey: 'dev.terraform.tfstate'
+                  allowTelemetryCollection: false
+                  commandOptions: '-auto-approve'
+
+# Stage 2: Destroy Staging
+- stage: Staging_Destroy
+  jobs:
+    - deployment: terraform_destroy_staging
+      environment: staging
+      pool:
+        vmImage: 'ubuntu-latest'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: TerraformInstaller@0
+                inputs:
+                  terraformVersion: '1.5.7'
+
+              - task: TerraformTaskV4@4
+                inputs:
+                  provider: 'azurerm'
+                  command: 'destroy'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
+                  ensureBackend: true
+                  backendAzureRmResourceGroupName: 'top_k8s_stage'
+                  backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
+                  backendAzureRmContainerName: 'tfstate'
+                  backendAzureRmKey: 'staging.terraform.tfstate'
+                  allowTelemetryCollection: false
+                  commandOptions: '-auto-approve'
