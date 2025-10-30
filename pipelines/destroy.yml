@@ -1,61 +1,89 @@
 trigger:
-  none  #  manual trigger for destroy the aks cluster
+  none  
 
 stages:
 # Stage 1: Destroy Dev
 - stage: Dev_Destroy
   jobs:
     - deployment: terraform_destroy_dev
+      displayName: 'Terraform Destroy - Dev'
       environment: dev
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       strategy:
         runOnce:
           deploy:
             steps:
+              - checkout: self
+                displayName: 'Checkout repository'
+
               - task: TerraformInstaller@0
+                displayName: 'Install Terraform'
                 inputs:
-                  terraformVersion: '1.5.7'
+                  terraformVersion: '1.13.4'
 
               - task: TerraformTaskV4@4
+                displayName: 'Terraform Init - Dev'
                 inputs:
                   provider: 'azurerm'
-                  command: 'destroy'
-                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
-                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
-                  ensureBackend: true
+                  command: 'init'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
+                  backendServiceArm: 'Azure-Service-Connection'
                   backendAzureRmResourceGroupName: 'top_k8s_stage'
                   backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
                   backendAzureRmContainerName: 'tfstate'
                   backendAzureRmKey: 'dev.terraform.tfstate'
-                  allowTelemetryCollection: false
+                  commandOptions: '-reconfigure'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Destroy - Dev'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'destroy'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
                   commandOptions: '-auto-approve'
 
 # Stage 2: Destroy Staging
 - stage: Staging_Destroy
+  dependsOn: Dev_Destroy
+  condition: succeeded()
   jobs:
     - deployment: terraform_destroy_staging
+      displayName: 'Terraform Destroy - Staging'
       environment: staging
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       strategy:
         runOnce:
           deploy:
             steps:
+              - checkout: self
+                displayName: 'Checkout repository'
+
               - task: TerraformInstaller@0
+                displayName: 'Install Terraform'
                 inputs:
-                  terraformVersion: '1.5.7'
+                  terraformVersion: '1.13.4'
 
               - task: TerraformTaskV4@4
+                displayName: 'Terraform Init - Staging'
                 inputs:
                   provider: 'azurerm'
-                  command: 'destroy'
-                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
-                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
-                  ensureBackend: true
+                  command: 'init'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
+                  backendServiceArm: 'Azure-Service-Connection'
                   backendAzureRmResourceGroupName: 'top_k8s_stage'
                   backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
                   backendAzureRmContainerName: 'tfstate'
                   backendAzureRmKey: 'staging.terraform.tfstate'
-                  allowTelemetryCollection: false
+                  commandOptions: '-reconfigure'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Destroy - Staging'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'destroy'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
                   commandOptions: '-auto-approve'

@@ -25,5 +25,29 @@ infra/
 scripts/
 └── create_storage_accounts.sh  # Create Azure storage accounts for Terraform state
 README.md
-create.yml             # CI/CD pipeline to deploy clusters
-destroy.yml     # CI/CD pipeline to destroy clusters
+create.yml            
+destroy.yml    
+
+🔧 Features
+
+Automated AKS cluster creation for Dev and Staging environments.
+
+Branch-aware Azure DevOps pipelines:
+
+dev branch → deploys Dev environment.
+
+main branch → deploys Staging environment.
+
+Fully automated destroy pipeline to safely remove clusters.
+
+Reusable Terraform module following best practices.
+
+Backend Terraform state stored securely in Azure Storage Accounts.
+
+⚙️ Prerequisites
+
+Azure account with a subscription.
+
+Azure CLI installed and logged in.
+
+Terraform >= 1.13.4.

@@ -1,6 +1,8 @@
 provider "azurerm" {
   features {}
+  resource_provider_registrations = "none"
 }
+
 
 module "aks_stage" {
   source              = "../../modules/aks"

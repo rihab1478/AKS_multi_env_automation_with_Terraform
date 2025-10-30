@@ -4,116 +4,161 @@ trigger:
       - main
   paths:
     include:
-      - infra/environments/*
-
+      - infra/environements/* 
 stages:
 # Stage 1: Validate Terraform
 - stage: Validate
   jobs:
+    # ----- Validate Dev -----
     - job: terraform_validate_dev
       displayName: 'Validate Dev Terraform'
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       steps:
+        - checkout: self
+          displayName: 'Checkout repository'
+
         - task: TerraformInstaller@0
+          displayName: 'Install Terraform'
           inputs:
-            terraformVersion: '1.5.7'
-        
+            terraformVersion: '1.13.4'
+
         - task: TerraformTaskV4@4
+          displayName: 'Terraform Init - Dev'
           inputs:
             provider: 'azurerm'
             command: 'init'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
             backendServiceArm: 'Azure-Service-Connection'
             backendAzureRmResourceGroupName: 'top_k8s_stage'
             backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
             backendAzureRmContainerName: 'tfstate'
             backendAzureRmKey: 'dev.terraform.tfstate'
-        
+            commandOptions: '-reconfigure'
+
         - task: TerraformTaskV4@4
+          displayName: 'Terraform Validate - Dev'
           inputs:
             provider: 'azurerm'
             command: 'validate'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
 
+    # ----- Validate Staging -----
     - job: terraform_validate_staging
       displayName: 'Validate Staging Terraform'
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       steps:
+        - checkout: self
+          displayName: 'Checkout repository'
+
         - task: TerraformInstaller@0
+          displayName: 'Install Terraform'
           inputs:
-            terraformVersion: '1.5.7'
-        
+            terraformVersion: '1.13.4'
+
         - task: TerraformTaskV4@4
+          displayName: 'Terraform Init - Staging'
           inputs:
             provider: 'azurerm'
             command: 'init'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
             backendServiceArm: 'Azure-Service-Connection'
             backendAzureRmResourceGroupName: 'top_k8s_stage'
             backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
             backendAzureRmContainerName: 'tfstate'
             backendAzureRmKey: 'staging.terraform.tfstate'
-        
+            commandOptions: '-reconfigure'
+
         - task: TerraformTaskV4@4
+          displayName: 'Terraform Validate - Staging'
           inputs:
             provider: 'azurerm'
             command: 'validate'
-            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
 # Stage 2: Deploy Dev
 - stage: Dev_Deploy
+  dependsOn: Validate
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
     - deployment: terraform_apply_dev
+      displayName: 'Terraform Apply - Dev'
       environment: dev
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       strategy:
         runOnce:
           deploy:
             steps:
+              - checkout: self
+                displayName: 'Checkout repository'
+
               - task: TerraformInstaller@0
+                displayName: 'Install Terraform'
                 inputs:
-                  terraformVersion: '1.5.7'
-              
+                  terraformVersion: '1.13.4'
               - task: TerraformTaskV4@4
+                displayName: 'Terraform Init - Dev'
                 inputs:
                   provider: 'azurerm'
-                  command: 'apply'
-                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/dev'
-                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
-                  ensureBackend: true
+                  command: 'init'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
+                  backendServiceArm: 'Azure-Service-Connection'
                   backendAzureRmResourceGroupName: 'top_k8s_stage'
                   backendAzureRmStorageAccountName: 'tfdevbackend2025rihab'
                   backendAzureRmContainerName: 'tfstate'
                   backendAzureRmKey: 'dev.terraform.tfstate'
+                  commandOptions: '-reconfigure'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply - Dev'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/dev'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
                   commandOptions: '-auto-approve'
+
 # Stage 3: Deploy Staging
 - stage: Staging_Deploy
+  dependsOn: Dev_Deploy
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
     - deployment: terraform_apply_staging
+      displayName: 'Terraform Apply - Staging'
       environment: staging
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Myagent'
       strategy:
         runOnce:
           deploy:
             steps:
+              - checkout: self
+                displayName: 'Checkout repository'
+
               - task: TerraformInstaller@0
+                displayName: 'Install Terraform'
                 inputs:
-                  terraformVersion: '1.5.7'
-              
+                  terraformVersion: '1.13.4'
+
               - task: TerraformTaskV4@4
+                displayName: 'Terraform Init - Staging'
                 inputs:
                   provider: 'azurerm'
-                  command: 'apply'
-                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environments/staging'
-                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
-                  ensureBackend: true
+                  command: 'init'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
+                  backendServiceArm: 'Azure-Service-Connection'
                   backendAzureRmResourceGroupName: 'top_k8s_stage'
                   backendAzureRmStorageAccountName: 'tfstagebackend2025rihab'
                   backendAzureRmContainerName: 'tfstate'
                   backendAzureRmKey: 'staging.terraform.tfstate'
+                  commandOptions: '-reconfigure'
+
+              - task: TerraformTaskV4@4
+                displayName: 'Terraform Apply - Staging'
+                inputs:
+                  provider: 'azurerm'
+                  command: 'apply'
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/infra/environements/staging'
+                  environmentServiceNameAzureRM: 'Azure-Service-Connection'
                   commandOptions: '-auto-approve'
